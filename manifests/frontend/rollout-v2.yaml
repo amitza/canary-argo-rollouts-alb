@@ -1,0 +1,93 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: frontend-rollout
+  namespace: default
+  labels:
+    app: frontend
+    component: rollout
+spec:
+  replicas: 4
+  strategy:
+    canary:
+      canaryService: frontend-canary-service
+      stableService: frontend-stable-service
+      trafficRouting:
+        managedRoutes:
+          - name: set-header-1
+        alb:
+          ingress: frontend-ingress
+          servicePort: 80
+          rootService: frontend-stable-service
+      steps:
+      - setWeight: 25
+      - setHeaderRoute:
+          name: "set-header-1"
+          match:
+          - headerName: X-Canary
+            headerValue:
+              exact: "True"
+      - pause: {}
+      - setHeaderRoute:
+          name: "set-header-1"
+  
+  selector:
+    matchLabels:
+      app: frontend
+  
+  template:
+    metadata:
+      labels:
+        app: frontend
+        version: stable
+    spec:
+      containers:
+      - name: frontend
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+          name: http
+        
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+        
+        env:
+        - name: SERVICE_NAME
+          value: "frontend"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+      
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: frontend-nginx-config
+          defaultMode: 0644

@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-nginx-config
+  namespace: default
+  labels:
+    app: backend
+    component: config
+data:
+  default.conf: |
+    log_format detailed_log '$remote_addr - $remote_user [$time_local] '
+                           '"$request" $status $body_bytes_sent '
+                           '"$http_referer" "$http_user_agent" '
+                           'host="$http_host" '
+                           'x_forwarded_for="$http_x_forwarded_for" '
+                           'x_real_ip="$http_x_real_ip" '
+                           'x_canary="$http_x_canary" '
+                           'x_frontend_pod="$http_x_frontend_pod" '
+                           'backend_pod="$hostname" '
+                           'request_time=$request_time';
+
+    server {
+        listen 80;
+        server_name localhost;
+        
+        access_log /dev/stdout detailed_log;
+        error_log /dev/stderr info;
+        
+        location /api {
+            # Log the incoming request details to stdout
+            access_log /dev/stdout detailed_log;
+            
+            add_header Content-Type text/plain;
+            add_header X-Backend-Pod $hostname;
+            add_header X-Request-ID $request_id;
+            
+            return 200 'Backend: $hostname\nRequest-ID: $request_id\nX-Canary: $http_x_canary\nX-Frontend-Pod: $http_x_frontend_pod\nX-Forwarded-For: $http_x_forwarded_for\nRemote-Addr: $remote_addr\nTime: $time_local\n';
+        }
+        
+        location /health {
+            # Minimal logging for health checks to avoid log spam
+            access_log off;
+            add_header Content-Type text/plain;
+            return 200 'Backend OK\n';
+        }
+        
+        location /version {
+            access_log /dev/stdout detailed_log;
+            add_header Content-Type text/plain;
+            add_header X-Backend-Pod $hostname;
+            return 200 'Backend: $hostname\nVersion: 1.0.0\nHeaders: canary=$http_x_canary, frontend=$http_x_frontend_pod\n';
+        }
+        
+        # Debug endpoint to show all headers
+        location /debug/headers {
+            access_log /dev/stdout detailed_log;
+            add_header Content-Type text/plain;
+            return 200 'Backend Pod: $hostname\nRequest Method: $request_method\nRequest URI: $request_uri\nRemote Address: $remote_addr\nX-Forwarded-For: $http_x_forwarded_for\nX-Real-IP: $http_x_real_ip\nX-Canary: $http_x_canary\nX-Frontend-Pod: $http_x_frontend_pod\nX-Frontend-Version: $http_x_frontend_version\nHost: $http_host\nUser-Agent: $http_user_agent\nAccept: $http_accept\nContent-Type: $http_content_type\nConnection: $http_connection\nRequest-ID: $request_id\nTime: $time_local\n';
+        }
+    }

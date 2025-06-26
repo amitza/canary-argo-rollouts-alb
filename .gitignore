@@ -1,0 +1,47 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+
+# Kubernetes temporary files
+*.yaml.bak
+*.yml.bak
+
+# Shell script backups
+*.sh.bak
+
+# Test artifacts
+test-pod-*
+test-*-pod
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Coverage reports
+coverage/
+*.cover
+*.py,cover
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
